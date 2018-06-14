@@ -5,16 +5,20 @@ import random
 from anet_db import ANetDB
 
 
-def parse_directory(path, rgb_prefix='img_', flow_x_prefix='flow_x_', flow_y_prefix='flow_y_'):
+def parse_directory(path, rgb_prefix='img_', flow_x_prefix='flow_x_', 
+        flow_y_prefix='flow_y_', dataset='ucf101'):
     """
     Parse directories holding extracted frames from standard benchmarks
     """
     print 'parse frames under folder {}'.format(path)
-    frame_folders = glob.glob(os.path.join(path, '*'))
+    if dataset == 'something':
+        frame_folders = glob.glob(os.path.join(path, '*'))
+    else:
+        frame_folders = glob.glob(os.path.join(path, '*/*'))
 
     def count_files(directory, prefix_list):
         lst = os.listdir(directory)
-        cnt_list = [len(fnmatch.filter(lst, x+'*')) for x in prefix_list]
+        cnt_list = [len(fnmatch.filter(lst, x+'*.jpg')) for x in prefix_list]
         return cnt_list
 
     # check RGB
@@ -23,7 +27,12 @@ def parse_directory(path, rgb_prefix='img_', flow_x_prefix='flow_x_', flow_y_pre
     dir_dict = {}
     for i,f in enumerate(frame_folders):
         all_cnt = count_files(f, (rgb_prefix, flow_x_prefix, flow_y_prefix))
-        k = f.split('/')[-1]
+        # k = f.split('/')[-1]
+        if dataset == 'something':
+            k = f.split('/')[-1]
+        else:
+            tmp_split = f.split('/')
+            k = tmp_split[-2]+'/'+tmp_split[-1]
         rgb_counts[k] = all_cnt[0]
         dir_dict[k] = f
 
@@ -61,14 +70,45 @@ def build_split_list(split_tuple, frame_info, split_idx, shuffle=False):
 
 
 ## Dataset specific split file parse
+def parse_something_splits():
+    # class_ind = [x.strip() for x 
+            # in open('/home/xinqizhu/repo/TRN-pytorch/video_datasets/something/category.txt')]
+    # print('get class id')
+    # print(len(class_ind))
+    # print(class_ind[:5])
+    # # class_mapping = {x[1]:int(x[0])-1 for x in class_ind}
+    # class_mapping = (x:i for i, x in enumerate(class_ind))
+
+    def line2rec(line):
+        # items = line.strip().split('/')
+        # label = class_mapping[items[0]]
+        # vid = line.strip().split('.')[0]
+        items = line.strip().split(' ')
+        label = int(items[-1])
+        vid = items[0]
+        return vid, label
+
+    splits = []
+    # for i in xrange(1, 4):
+    train_list = [line2rec(x) for x 
+            in open('/home/xinqizhu/repo/TRN-pytorch/video_datasets/something/train_videofolder.txt')]
+    test_list = [line2rec(x) for x 
+            in open('/home/xinqizhu/repo/TRN-pytorch/video_datasets/something/val_videofolder.txt')]
+    splits.append((train_list, test_list))
+    return splits
+
 def parse_ucf_splits():
     class_ind = [x.strip().split() for x in open('data/ucf101_splits/classInd.txt')]
+    print('get class id')
+    print(len(class_ind))
+    print(class_ind[:5])
     class_mapping = {x[1]:int(x[0])-1 for x in class_ind}
 
     def line2rec(line):
         items = line.strip().split('/')
         label = class_mapping[items[0]]
-        vid = items[1].split('.')[0]
+        vid = line.strip().split('.')[0]
+        # vid = items[1].split('.')[0]
         return vid, label
 
     splits = []
@@ -77,7 +117,6 @@ def parse_ucf_splits():
         test_list = [line2rec(x) for x in open('data/ucf101_splits/testlist{:02d}.txt'.format(i))]
         splits.append((train_list, test_list))
     return splits
-
 
 def parse_hmdb51_splits():
     # load split file
